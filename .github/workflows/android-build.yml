@@ -31,6 +31,45 @@ jobs:
           unzip -o FZ_GAMING_V3_VIP_source.zip -d .
           test -f FZ_GAMING_V3_VIP/app/build.gradle.kts
 
+      - name: Fix Java JVM target
+        working-directory: FZ_GAMING_V3_VIP
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("app/build.gradle.kts")
+          s = p.read_text()
+
+          pattern = r'compileOptions\s*\{[^}]*\}'
+          match = re.search(pattern, s, re.S)
+
+          if match:
+              block = match.group()
+              block = re.sub(
+                  r'JavaVersion\.VERSION_1_8',
+                  'JavaVersion.VERSION_17', block
+              )
+              block = re.sub(
+                  r'JavaVersion\.VERSION_11',
+                  'JavaVersion.VERSION_17', block
+              )
+              s = s[:match.start()] + block + s[match.end():]
+          else:
+              marker = "    defaultConfig {"
+              fix = """    compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+
+          """
+              if marker not in s:
+                  raise SystemExit("Android defaultConfig not found")
+              s = s.replace(marker, fix + marker, 1)
+
+          p.write_text(s)
+          PY
+
       - name: Build APK
         working-directory: FZ_GAMING_V3_VIP
         run: gradle assembleDebug
